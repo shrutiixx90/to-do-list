@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>To-Do List</title>
+</head>
+<body>
+    <h1>To-Do List</h1>
+    <div id="login">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button type="button" onclick="login()">Login</button>
+        </form>
+    </div>
+    <div id="todo">
+        <h2>To-Do Items</h2>
+        <ul id="todoList"></ul>
+        <h2>Add To-Do</h2>
+        <form id="todoForm">
+            <input type="text" id="title" placeholder="Title">
+            <textarea id="description" placeholder="Description"></textarea>
+            <input type="datetime-local" id="time">
+            <input type="file" id="image" style="display:none;">
+            <button type="button" onclick="addTodo()">Add To-Do</button>
+        </form>
+    </div>
+    <button id="proButton" onclick="buyPro()">Buy Pro</button>
+    <script>
+        let token = '';
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                token = data.access_token;
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('todo').style.display = 'block';
+                fetchTodos();
+            });
+        }
+
+        function fetchTodos() {
+            fetch('/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ query: '{ allTodos { id title description time image } }' }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const todoList = document.getElementById('todoList');
+                todoList.innerHTML = '';
+                data.data.allTodos.forEach(todo => {
+                    const li = document.createElement('li');
+                    li.innerText = `${todo.title} - ${todo.description} - ${todo.time}`;
+                    todoList.appendChild(li);
+                });
+            });
+        }
+
+        function addTodo() {
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const time = document.getElementById('time').value;
+            const image = document.getElementById('image').files[0];
+
+            fetch('/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `mutation { createTodo(title: "${title}", description: "${description}", time: "${time}", image: "${image}") { todo { id title description time image } } }`
+                }),
+            })
+            .then(response => response.json())
+            .then(() => {
+                fetchTodos();
+            });
+        }
+
+        function buyPro() {
+            const username = document.getElementById('username').value;
+
+            fetch('/buy_pro', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            });
+        }
+    </script>
+</body>
+</html>
